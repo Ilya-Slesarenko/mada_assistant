@@ -1,4 +1,4 @@
-git+https://github.com/GIT_USER_ID/GIT_REPO_ID.git
+git+https://github.com/Awethon/open-api-python-client
 aiogram == 2.14.3
 scipy == 1.6.3
 numpy == 1.19.5
