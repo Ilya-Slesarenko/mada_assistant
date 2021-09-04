@@ -1,4 +1,4 @@
-openapi-python-client
+openapi-python-client == 0.10.3
 aiogram == 2.14.3
 scipy == 1.6.3
 numpy == 1.19.5
