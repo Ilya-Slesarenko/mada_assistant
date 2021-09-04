@@ -1,4 +1,4 @@
-tinkoff-invest-openapi-client
+https://test.pypi.org/simple/ --extra-index-url=https://pypi.org/simple/ tinkoff-invest-openapi-client
 aiogram == 2.14.3
 scipy == 1.6.3
 numpy == 1.19.5
