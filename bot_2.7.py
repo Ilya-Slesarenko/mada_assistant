@@ -1,4 +1,4 @@
-import config, logging, random, warnings
+import config, logging, random, warnings, io, base64
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.utils.exceptions import BadRequest as BRq
 from scipy.stats import norm
@@ -6,28 +6,31 @@ from openapi_client import openapi
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from PIL import Image
 from datetime import datetime, timedelta
-from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, LSTM
 import yfinance as yf
 import pandas_datareader.data as pdr
 from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
+
 nltk.download('vader_lexicon')
 warnings.filterwarnings('ignore')
 # if  JSONDecodeError  HAPPENS - upgrade the yfinance!
 
+# method for image capturing in temp.memory (instead of saving)
+try:
+    from StringIO import StringIO  ## for Python 2
+except ImportError:
+    from io import StringIO
 
 # Получение списка акций   - всех доступных!!!
-token_file = open(file='C:\\Users\\Ilia\\Documents\\Python_projects\\Stock_analysis\\my_account.txt')
-my_token = token_file.readline().rstrip('\n')
+my_token = 't.NSmiFBa_aCeegxA4gCrVVI2pW_qYoDAKxm3M2_a4xq_jokCa-baZxJc1mjgr7VmO1HHpQFY5XOyjqlWcRSHXuA'
 client = openapi.api_client(my_token)
 stocks = client.market.market_stocks_get()
 stocks_list = stocks.payload.instruments
-tickers_list = []  # список всех доступных тикеров на Тинькове (судя по всему)
+tickers_list = []  # список всех доступных тикеров на Тинькове
 for i in stocks_list:
     tickers_list.append(i.ticker)
 
@@ -120,9 +123,9 @@ def get_tf_companies_feedback(ticker):
             div_date = 'Без дивидендов'
 
         normalized_output = str(f'Полное наименование: {company_name}\nСектор: {sector}\nСтрана: {country}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
-                                f'P/S: {P_S_12_m}\nP/B: {P_B}\nМаржинальность: {round(marg*100, 2)}%\nСтоимость компании / Выручка: {round(enterprToRev,2)}%\n'+
-                                f'Стоимость компании / EBITDA: {round(enterprToEbitda,2)}%\nГодовая дивидендная доходность: ~{round(yr_div*100 ,2)}%\n'+
-                                f'Див.доходность за 5 лет: {round(five_yr_div_yield*100 ,2)}%\n'+
+                                f'P/S: {P_S_12_m}\nP/B: {P_B}\nМаржинальность: {round(marg * 100, 2)}%\nСтоимость компании / Выручка: {round(enterprToRev, 2)}%\n' +
+                                f'Стоимость компании / EBITDA: {round(enterprToEbitda, 2)}%\nГодовая дивидендная доходность: ~{round(yr_div * 100, 2)}%\n' +
+                                f'Див.доходность за 5 лет: {round(five_yr_div_yield * 100, 2)}%\n' +
                                 f'Крайняя дата выплаты дивидендов: {div_date}')
 
     except IndexError:
@@ -139,9 +142,8 @@ def riskAnalysis(ticker):
     verdict_list_whole_period = []
     probabilities_to_drop_over_40 = []
     probabilities_to_drop_over_5 = []
-    analysed_companies = []
 
-    start = datetime.now() - timedelta(365*2.5)
+    start = datetime.now() - timedelta(365 * 2.5)
     start_2 = datetime.now() - timedelta(365)
     end = datetime.utcnow()
 
@@ -209,25 +211,29 @@ def riskAnalysis(ticker):
 
         buy_now_decision_1 = round(data['ma10'][-2] - data['ma50'][-2], 2)  # 'Buy' if ...
 
-        normalized_output = str(f'Теоретическая прибыльность при торговле в long, с {str(datetime.date(start))}: {str(round(verdict_whole_period*10 ,1))}%\n' +
-                                f'Прибыльность за период с {str(datetime.date(start_2))}: {str(round(verdict_whole_period_2*10 ,1))}%\n' +
+        normalized_output = str(f'Теоретическая прибыльность при торговле в long, с {str(datetime.date(start))}: {str(round(verdict_whole_period * 10, 1))}%\n' +
+                                f'Прибыльность за период с {str(datetime.date(start_2))}: {str(round(verdict_whole_period_2 * 10, 1))}%\n' +
                                 f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_to_drop_over_40 * 100, 2))}' +
                                 f'%\nТекущий уровень прибыльности при торговле в long: {str(buy_now_decision_1)}%\nТекущая стоимость акции: ~${str(round(current_rate, 2))}')
 
         # Plot the test predictions
-        plt.clf() # clear the previous requested content
+        plt.clf()  # clear the previous requested content
         plt.plot(data_2['ma50'], color="green", label="за 50 дней")
         plt.plot(data_2['ma10'], color="orange", label="за 10 дней")
         plt.plot(data_2['ma5'], color="red", label="за 5 дней")
         plt.plot(data_2['Close'], color="black", label="Цена акции (Закрытие)")
         plt.title(f"{ticker} - График средних скользящих")
-        #plt.xlabel(f"Time")
+        # plt.xlabel(f"Time")
         plt.ylabel(f"$")
         plt.legend()
-        plt.savefig(f'C:\\Users\\Ilia\\Documents\\Python_projects\\Stock_analysis\\Risk_analysis\\images\\{ticker}.png', dpi=300)
+
+        sunalt = plt.gcf() # get current figure
+        buf = io.BytesIO()
+        sunalt.savefig(buf, format='png')
+        buf.seek(0)
+        buffer_image = buf
 
         print(f'Done, for {ticker}: {tickers_list.index(ticker) + 1} out of {len(tickers_list)}')
-        analysed_companies.append(ticker)
 
     except ValueError:
         pre_fail_text = f"Value Error, skipped: {ticker}"
@@ -239,14 +245,13 @@ def riskAnalysis(ticker):
         print(pre_fail_text)
         pass
 
-    return normalized_output
-
+    return normalized_output, buffer_image
 
 
 def get_sentiment_analysis(ticker):
     finwiz_url = 'https://finviz.com/quote.ashx?t='
     news_tables = {}
-    #Парсинг контента по тикеру
+    # Парсинг контента по тикеру
     url = finwiz_url + ticker
     req = Request(url=url, headers={'user-agent': 'my-app/0.0.1'})
     response = urlopen(req)
@@ -313,10 +318,16 @@ def get_sentiment_analysis(ticker):
     mean_scores.plot(kind='bar')
     plt.title(f"{ticker} - Рейтинг новостей")
     plt.grid()
-    plt.savefig(f'C:\\Users\\Ilia\\Documents\\Python_projects\\Stock_analysis\\sentiment_analysis\\output_charts\\{ticker}.png', dpi=300)
-    print('New plot of Sent.Analysis saved!')
 
-    return latest_feedback
+    sunalt = plt.gcf()  # get current figure
+    buf = io.BytesIO()
+    sunalt.savefig(buf, format='png')
+    buf.seek(0)
+    buffer_image = buf
+
+
+    return latest_feedback, buffer_image
+
 
 # log level
 logging.basicConfig(level=logging.INFO)
@@ -326,28 +337,27 @@ bot = Bot(token=config.TOKEN)
 dp = Dispatcher(bot)
 
 
-
 # giving the ticker data
 @dp.message_handler()
 async def give_feedback(message: types.Message):
     try:
         split_text = message.text.split(" ")
-        if (split_text[0] in tickers_list): # and (re.match('conf', n) for n in split_text):
+        if (split_text[0] in tickers_list):  # and (re.match('conf', n) for n in split_text):
             chat_id = message.chat.id
             info = get_tf_companies_feedback(split_text[0])
             await message.reply(info)
 
-            info_2 = riskAnalysis(split_text[0])
-            await message.reply(info_2)
-
-            ma_pic_path = f'C:\\Users\\Ilia\\Documents\\Python_projects\\Stock_analysis\\Risk_analysis\\images\\{split_text[0]}.png'
-            await bot.send_photo(chat_id, photo=open(ma_pic_path, 'rb'))
+            info_1 = riskAnalysis(split_text[0])
+            info_11 = info_1[0]
+            ma_pic = info_1[1]
+            await message.reply(info_11)
+            await bot.send_photo(chat_id, photo=ma_pic)
 
             info__sent = get_sentiment_analysis(split_text[0])
-            await message.reply(info__sent)
-
-            ma_pic_sent_path = f'C:\\Users\\Ilia\\Documents\\Python_projects\\Stock_analysis\\sentiment_analysis\\output_charts\\{split_text[0]}.png'
-            await bot.send_photo(chat_id, photo=open(ma_pic_sent_path, 'rb'))
+            info__sent_1 = info__sent[0]
+            ma_pic_sent = info__sent[1]
+            await message.reply(info__sent_1)
+            await bot.send_photo(chat_id, photo=ma_pic_sent)
 
 
     except TypeError:
