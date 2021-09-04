@@ -6,7 +6,6 @@ from openapi_client import openapi
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from PIL import Image
 from datetime import datetime, timedelta
 import yfinance as yf
 import pandas_datareader.data as pdr
