@@ -1,4 +1,4 @@
--e https://test.pypi.org/simple/ --extra-index-url=https://pypi.org/simple/ tinkoff-invest-openapi-client
+git+https://github.com/GIT_USER_ID/GIT_REPO_ID.git
 aiogram == 2.14.3
 scipy == 1.6.3
 numpy == 1.19.5
