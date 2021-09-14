@@ -303,7 +303,7 @@ def get_sentiment_analysis(ticker):
     latest_news_date = parsed_and_scored_news_list[1]
     latest_news_time = parsed_and_scored_news_list[2]
     latest_news_text = parsed_and_scored_news_list[3]
-    latest_news_link = str{parsed_and_scored_news_list[4]}
+    latest_news_link = str(parsed_and_scored_news_list[4])
     average_score = parsed_and_scored_news_list[-1]
     # print(f'Latest_news_date: {latest_news_date} - {type(latest_news_date)} ; latest news: {latest_news} - {type(latest_news)}, average score: {average_score} - {type(average_score)}')
     latest_feedback = str(f'Крайняя новость, на дату {str(latest_news_date)}: {str(latest_news_time)}\n{str(latest_news_text)}\nСредняя оценка: {str(average_score)}')
