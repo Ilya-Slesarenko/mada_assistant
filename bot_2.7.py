@@ -262,6 +262,7 @@ def get_sentiment_analysis(ticker):
     news_tables[ticker] = news_table
 
     parsed_news = []
+    news_titles_refs_dict = {}
     # Iterate through the news
     for file_name, news_table in news_tables.items():
         # Iterate through all tr tags in 'news_table'
@@ -269,6 +270,9 @@ def get_sentiment_analysis(ticker):
             # read the text from each tr tag into text
             # get text from a only
             text = x.a.get_text()
+            if x.a.has_attr('href'):
+                link = x.a['href']
+                news_titles_refs_dict[text] = link
             # splite text in the td tag into a list
             date_scrape = x.td.text.split()
             # if the length of 'date_scrape' is 1, load 'time' as the only element
@@ -301,8 +305,8 @@ def get_sentiment_analysis(ticker):
     latest_news_date = parsed_and_scored_news_list[1]
     latest_news = parsed_and_scored_news_list[2]
     average_score = parsed_and_scored_news_list[-1]
-    print(f'Latest_news_date: {latest_news_date} - {type(latest_news_date)} ; latest news: {latest_news} - {type(latest_news)}, average score: {average_score} - {type(average_score)}')
-    latest_feedback = str(f'Крайняя новость, на дату {str(latest_news_date)}: {str(latest_news)}\nСредняя оценка: {str(average_score)}')
+    # print(f'Latest_news_date: {latest_news_date} - {type(latest_news_date)} ; latest news: {latest_news} - {type(latest_news)}, average score: {average_score} - {type(average_score)}')
+    latest_feedback = str(f'Крайняя новость, на дату {str(latest_news_date)}: {str(latest_news)}\n{str(news_titles_refs_dict[latest_news])}\nСредняя оценка: {str(average_score)}')
 
     # showing the data on chart
     plt.clf()  # clear the previous requested content
