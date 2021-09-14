@@ -262,7 +262,6 @@ def get_sentiment_analysis(ticker):
     news_tables[ticker] = news_table
 
     parsed_news = []
-    news_titles_refs_dict = {}
     # Iterate through the news
     for file_name, news_table in news_tables.items():
         # Iterate through all tr tags in 'news_table'
@@ -272,7 +271,6 @@ def get_sentiment_analysis(ticker):
             text = x.a.get_text()
             if x.a.has_attr('href'):
                 link = x.a['href']
-                news_titles_refs_dict[text] = link
             # splite text in the td tag into a list
             date_scrape = x.td.text.split()
             # if the length of 'date_scrape' is 1, load 'time' as the only element
@@ -285,12 +283,12 @@ def get_sentiment_analysis(ticker):
             # Extract the ticker from the file name, get the string up to the 1st '_'
             ticker = file_name.split('_')[0]
             # Append ticker, date, time and headline as a list to the 'parsed_news' list
-            parsed_news.append([ticker, date, time, text])
+            parsed_news.append([ticker, date, time, text, link])
 
     # Instantiate the sentiment intensity analyzer
     vader = SentimentIntensityAnalyzer()
     # Set column names
-    columns = ['ticker', 'date', 'time', 'headline']
+    columns = ['ticker', 'date', 'time', 'headline', 'href_link']
     # Convert the parsed_news list into a DataFrame called 'parsed_and_scored_news'
     parsed_and_scored_news = pd.DataFrame(parsed_news, columns=columns)
     # Iterate through the headlines and get the polarity scores using vader
@@ -304,9 +302,10 @@ def get_sentiment_analysis(ticker):
     parsed_and_scored_news_list = parsed_and_scored_news.head().values.tolist()[0]
     latest_news_date = parsed_and_scored_news_list[1]
     latest_news = parsed_and_scored_news_list[2]
+    latest_news_link = parsed_and_scored_news_list[3]
     average_score = parsed_and_scored_news_list[-1]
     # print(f'Latest_news_date: {latest_news_date} - {type(latest_news_date)} ; latest news: {latest_news} - {type(latest_news)}, average score: {average_score} - {type(average_score)}')
-    latest_feedback = str(f'Крайняя новость, на дату {str(latest_news_date)}: {str(latest_news)}\n{str(news_titles_refs_dict[latest_news])}\nСредняя оценка: {str(average_score)}')
+    latest_feedback = str(f'Крайняя новость, на дату {str(latest_news_date)}: {str(latest_news)}\n{str(latest_news_link)}\nСредняя оценка: {str(average_score)}')
 
     # showing the data on chart
     plt.clf()  # clear the previous requested content
