@@ -293,7 +293,7 @@ class RecommendAdvice():
 
             buy_now_decision_1 = round(data['ma10'][-2] - data['ma50'][-2], 2)  # 'Buy' if ...
 
-            final_params_tech = [start, start_2, verdict_whole_period, verdict_whole_period_2, prob_to_drop_over_40, buy_now_decision_1, current_rate, average_period_1, average_period_2]
+            final_params_tech = [start, start_2, verdict_whole_period, verdict_whole_period_2, prob_to_drop_over_40, buy_now_decision_1, current_rate, int(average_period_1), int(average_period_2)]
             list_headers_tech = ['Период-1', 'Период-2', 'Вердикт-1', 'Вердикт-2', 'Вероятность падения', 'Текущий уровень роста в long', 'Текущий close', 'эффективный период инвестирования по 2-м годам', 'эффективный период инвестирования по 1-му году']
 
             tech_dictionary = dict(zip(list_headers_tech, final_params_tech))
@@ -414,40 +414,35 @@ class RecommendAdvice():
             fundamental_info = self.get_fundamental_data(self.req_ticker)
 
             try:
-                P_S = fundamental_info.get('P/S')
-                if P_S is None:
-                    P_S = 0
-                else:
-                    P_S = P_S
-            except TypeError:
+                P_S = fundamental_info.get('P/S') if fundamental_info.get('P/S') >0 else 0
+            except:
                 P_S = 0
 
             try:
-                P_B = fundamental_info.get('P/B')
-                if P_B is None:
-                    P_B = 0
-                else:
-                    P_B = P_B
-            except TypeError:
+                P_B = fundamental_info.get('P/B') if fundamental_info.get('P/B') >0 else 0
+            except:
                 P_B = 0
+
             Sector = fundamental_info.get('Сектор')
             country = fundamental_info.get('Страна')
             m_cap = fundamental_info.get('Рыночная капитализация, $млн.')
             enterp_val = fundamental_info.get('Стоимость компании, $млн.')
-            FCF = fundamental_info.get('FreeCashFlow')
-            DTE = fundamental_info.get('DebtToEquity')
+            FCF = f'''Поток свободных денежных средств: {fundamental_info.get('FreeCashFlow')}млн.\n''' if fundamental_info.get('FreeCashFlow') >0 else ''
+            DTE = f'''Долг к выручке: {round(fundamental_info.get('DebtToEquity') ,2)}%\n''' if round(fundamental_info.get('DebtToEquity') ,2) >0 else ''
             ROA = round(fundamental_info.get('ROA_ReturnOnAssets')*100 ,2)
-            EBIT = fundamental_info.get('EBITDA')
-            NOA = fundamental_info.get('NumberOfAnalystOpinions')
-            enterprToRev = fundamental_info.get('Стоимость компании / Выручка')
-            enterprToEbitda = fundamental_info.get('Стоимость компании / EBITDA')
-            yr_div = round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2)
-            five_yr_div_yield = round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2)
+            EBIT = f'''EBITDA: ${fundamental_info.get('EBITDA')}млн.\n''' if fundamental_info.get('EBITDA') > 0 else ''
+            NOA = fundamental_info.get('NumberOfAnalystOpinions') if fundamental_info.get('NumberOfAnalystOpinions') is not None else 0
+            try:
+                enterprToRev = f'''Стоимость компании / Выручка: {round(fundamental_info.get('Стоимость компании / Выручка'), 2)}%\n''' if round(fundamental_info.get('Стоимость компании / Выручка'), 2) >0  else ''
+            except:
+                enterprToRev = ''
+            try:
+                enterprToEbitda = f'''Стоимость компании / EBITDA: {round(fundamental_info.get('Стоимость компании / EBITDA'), 2)}%\n''' if round(fundamental_info.get('Стоимость компании / EBITDA'), 2) >0 else ''
+            except:
+                enterprToEbitda = ''
+            yr_div = f'''Годовая дивидендная доходность: ~{round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2)}%\n''' if round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2) >0 else ''
+            five_yr_div_yield = f'''Див.доходность за 5 лет: {round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2)}%\n''' if round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2) >0 else ''
 
-            if NOA is None:
-                NOA = 0
-            else:
-                NOA = NOA
             T_EPS = fundamental_info.get('Trailing_EPS_EarningsPerShare')
 
             risk_analysis_data = self.riskAnalysis(self.req_ticker)
@@ -461,6 +456,17 @@ class RecommendAdvice():
             verdict_1 = tech_info.get('Вердикт-1')
             verdict_2 = tech_info.get('Вердикт-2')
             prob_2_drop = tech_info.get('Вероятность падения')
+
+            if prob_2_drop < 0.5:
+                add_part = '(низкий риск!)'
+            if prob_2_drop < 0.10:
+                add_part = '(ниже средней)'
+            if prob_2_drop > 0.10 and prob_2_drop < 0.24:
+                add_part = '(в районе средней)'
+            if prob_2_drop >=0.24 and prob_2_drop <0.35:
+                add_part = '(выше средней)'
+            if prob_2_drop >=0.35:
+                add_part = '(высокий риск!)'
             buy_now_decision = tech_info.get('Текущий уровень роста в long')
             current_close = tech_info.get('Текущий close')
             effective_shoulder_1 = tech_info.get('эффективный период инвестирования по 2-м годам')
@@ -470,34 +476,23 @@ class RecommendAdvice():
                 P_E = round(current_close / T_EPS, 2)
             except ZeroDivisionError:
                 P_E = 'нет данных'
+
             try:
                 TMP = fundamental_info.get('TargetMedianPrice')
                 EXP_G = round( (TMP / current_close - 1) * 100, 1)
-                if EXP_G >= 0:
-                    sign = '+'
-                else:
-                    sign = '-'
             except TypeError:
                 TMP = 0
                 EXP_G = 0
 
-            if yr_div == 0 or five_yr_div_yield == 0: # опускаем информацию по дивам
-                first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
-                                             f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\nEBITDA: ${EBIT}млн.\nПоток свободных денежных средств: {FCF}млн.\nСтоимость компании / Выручка: {round(enterprToRev, 2)}%\n' +
-                                             f'Стоимость компании / EBITDA: {round(enterprToEbitda, 2)}%\nДолг к выручке: {round(DTE, 2)}%\nРентабельность активов: {ROA}%\n')
-            else:
-                first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
-                                             f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\nEBITDA: ${EBIT}млн.\nПоток свободных денежных средств: {FCF}млн.\nСтоимость компании / Выручка: {round(enterprToRev, 2)}%\n' +
-                                             f'Стоимость компании / EBITDA: {round(enterprToEbitda, 2)}%\nДолг к выручке: {round(DTE, 2)}%\nРентабельность активов: {ROA}%\n'+
-                                             f'Годовая дивидендная доходность: ~{yr_div}%\nДив.доходность за 5 лет: {five_yr_div_yield}%\n')
-
+            first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
+                                         f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\n'+EBIT+FCF+enterprToRev +enterprToEbitda+DTE+f'Рентабельность активов: {ROA}%\n'+yr_div+five_yr_div_yield)
 
             second_part_technical = str(f'Теоретическая прибыльность при торговле в long, с {str(datetime.date(period_1))}: {str(round(verdict_1 * 10, 1))}%\n' +
                                     f'Прибыльность за период с {str(datetime.date(period_2))}: {str(round(verdict_2 * 10, 1))}%\n' +
-                                    f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_2_drop * 100, 2))}' +
-                                    f'%\nТекущий уровень прибыльности при торговле в long: {str(buy_now_decision)}%\nТекущая стоимость акции: ~${str(round(current_close, 2))}\n'+
-                                    f'По взвешенной оценке экспертов, акция оценивается в ${round(TMP, 2)}('+sign+f'{EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
-                                    f'%\nЭффективный период инвестирования с {str(datetime.date(period_1))}, в среднем составляет: {str(effective_shoulder_1)}дн.; c {str(datetime.date(period_2))}: {str(effective_shoulder_2)}дн.')
+                                    f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_2_drop * 100, 2))}% {add_part} \n' +
+                                    f'Текущий уровень прибыльности при торговле в long: {str(buy_now_decision)}%\nТекущая стоимость акции: ~${str(round(current_close, 2))}\n'+
+                                    f'По взвешенной оценке экспертов, акция оценивается в ${round(TMP, 2)} ({EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
+                                    f'Эффективный период инвестирования с {str(datetime.date(period_1))}, в среднем составляет: {str(effective_shoulder_1)}дн.; c {str(datetime.date(period_2))}: {str(effective_shoulder_2)}дн.')
 
             try:
                 chart_1 = risk_analysis_data[1]
