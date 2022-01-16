@@ -1,3 +1,5 @@
+import httplib2, apiclient.discovery
+from oauth2client.service_account import ServiceAccountCredentials
 from scipy.stats import norm
 import numpy as np
 import matplotlib.pyplot as plt
