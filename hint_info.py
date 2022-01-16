@@ -127,7 +127,7 @@ class RecommendAdvice():
                 div_date = 'Без дивидендов'
 
             try:
-                FreeCashFlow = t_info.get('freeCashflow') if t_info.get('freeCashflow') is not None else 0
+                FreeCashFlow = round(t_info.get('freeCashflow')/1000000 ,2) if t_info.get('freeCashflow') is not None else 0
             except TypeError:
                 FreeCashFlow = None
 
@@ -142,7 +142,7 @@ class RecommendAdvice():
                 ROA_ReturnOnAssets = None
 
             try:
-                EBITDA = t_info.get('ebitda') if t_info.get('ebitda') is not None else 0
+                EBITDA = round(t_info.get('ebitda') / 1000000 ,3) if t_info.get('ebitda') is not None else 0
             except TypeError:
                 EBITDA = None
 
@@ -167,12 +167,9 @@ class RecommendAdvice():
 
             a_dictionary = dict(zip(list_headers, final_params_fundamental))
 
-        except IndexError:
-            error_text_1 = f'IndexError issue for: {ticker}, passing'
-            return error_text_1
-        except ImportError:
-            error_text_2 = f'ImportError issue (maybe because too mush parsing... for: {ticker}, passing'
-            return error_text_2
+        except:
+            error_text = f'Some issue (maybe because too mush parsing... for: {ticker}, passing'
+            return error_text
 
         return a_dictionary
 
@@ -202,43 +199,6 @@ class RecommendAdvice():
             data['Direction'] = [1 if data['PriceDiff'].loc[ei] > 0 else 0 for ei in data.index]
             data_2['Direction'] = [1 if data_2['PriceDiff'].loc[ei] > 0 else 0 for ei in data_2.index]
 
-            # определяем среднее число непрерывных положительных участков для определения оптимального числа дней для инвестирования
-            values_temp_1 = data.values.tolist()
-            list_of_periods_1 = []
-            z = 0
-            for v in values_temp_1:
-                if v[-1] == 1:
-                    z += 1
-                else:
-                    if z > 7:
-                        list_of_periods_1.append(z)
-                        z = 0
-                    else:
-                        z = 0
-
-            sum = 0
-            for i in list_of_periods_1:
-                sum += i
-            average_period_1 = round(sum / len(list_of_periods_1),0)
-
-            values_temp_2 = data_2.values.tolist()
-            list_of_periods_2 = []
-            k = 0
-            for v in values_temp_2:
-                if v[-1] == 1:
-                    k += 1
-                else:
-                    if k > 7:
-                        list_of_periods_2.append(k)
-                        k = 0
-                    else:
-                        k = 0
-
-            sum_2 = 0
-            for i in list_of_periods_2:
-                sum_2 += i
-            average_period_2 = round(sum_2 / len(list_of_periods_2), 0)
-
             # making mean average for 10 and 50 days
             data['ma50'] = data['Close'].rolling(50).mean()
             data_2['ma50'] = data_2['Close'].rolling(50).mean()
@@ -254,6 +214,52 @@ class RecommendAdvice():
             data_2['Close1'] = data_2['Close'].shift(-1)
             data['Profit'] = [data.loc[ei, 'Close1'] - data.loc[ei, 'Close'] if data.loc[ei, 'Shares'] == 1 else 0 for ei in data.index]
             data_2['Profit'] = [data_2.loc[ei, 'Close1'] - data_2.loc[ei, 'Close'] if data_2.loc[ei, 'Shares'] == 1 else 0 for ei in data_2.index]
+
+            # определяем среднее число непрерывных положительных участков для определения оптимального числа дней для инвестирования
+            values_temp_1 = data.values.tolist()
+
+            list_of_periods_1 = []
+            z, sum = 0, 0
+            for v in values_temp_1:
+                try:
+                    if int(v[-4]) > int(v[-6]):  # if the ma5 is higher than ma50 - the period counts
+                        z += 1
+                    else:
+                        if z >= 14:  # taking the period of at least 2 weeks
+                            list_of_periods_1.append(z)
+                            z = 0
+                        else:
+                            z = 0
+                except: # ma values could be NaN, so need to just pass them
+                    pass
+            for i in list_of_periods_1:
+                sum += i
+            try:
+                average_period_1 = round(sum / len(list_of_periods_1), 0)
+            except:  # assume there might be ZeroDivisionError:
+                average_period_1 = 0
+
+            values_temp_2 = data_2.values.tolist()
+            list_of_periods_2 = []
+            k, sum_2 = 0, 0
+            for v in values_temp_2:
+                try:
+                    if int(v[-4]) > int(v[-6]):
+                        k += 1
+                    else:
+                        if k >= 14:
+                            list_of_periods_2.append(k)
+                            k = 0
+                        else:
+                            k = 0
+                except:  # ma values could be NaN, so need to just pass them
+                    pass
+            for i in list_of_periods_2:
+                sum_2 += i
+            try:
+                average_period_2 = round(sum_2 / len(list_of_periods_2), 0)
+            except:  # assume there might be ZeroDivisionError:
+                average_period_2 = 0
 
             data['wealth'] = data['Profit'].cumsum()
             data_2['wealth'] = data_2['Profit'].cumsum()
@@ -311,12 +317,11 @@ class RecommendAdvice():
 
             print(f'{ticker}: is at the {self.tickers_list.index(ticker) + 1} position out of {len(self.tickers_list)} in parsed list for now')
 
-            return tech_dictionary, buffer_image
-
         except:
-            print(f"Error, skipped: {ticker}; most probably, ticker is not in my list")
-            pass
+            error_text = "Error, skipped: {ticker}; most probably, ticker is not in my list"
+            return error_text
 
+        return tech_dictionary, buffer_image
 
 
     def get_sentiment_analysis(self, ticker):
@@ -426,15 +431,18 @@ class RecommendAdvice():
             except TypeError:
                 P_B = 0
             Sector = fundamental_info.get('Сектор')
+            country = fundamental_info.get('Страна')
             m_cap = fundamental_info.get('Рыночная капитализация, $млн.')
             enterp_val = fundamental_info.get('Стоимость компании, $млн.')
             FCF = fundamental_info.get('FreeCashFlow')
             DTE = fundamental_info.get('DebtToEquity')
-            ROA = fundamental_info.get('ROA_ReturnOnAssets')
+            ROA = round(fundamental_info.get('ROA_ReturnOnAssets')*100 ,2)
             EBIT = fundamental_info.get('EBITDA')
             NOA = fundamental_info.get('NumberOfAnalystOpinions')
             enterprToRev = fundamental_info.get('Стоимость компании / Выручка')
             enterprToEbitda = fundamental_info.get('Стоимость компании / EBITDA')
+            yr_div = round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2)
+            five_yr_div_yield = round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2)
 
             if NOA is None:
                 NOA = 0
@@ -444,7 +452,10 @@ class RecommendAdvice():
 
             risk_analysis_data = self.riskAnalysis(self.req_ticker)
 
-            tech_info = risk_analysis_data[0]
+            try:
+                tech_info = risk_analysis_data[0]
+            except:
+                tech_info = ''
             period_1 = tech_info.get('Период-1')
             period_2 = tech_info.get('Период-2')
             verdict_1 = tech_info.get('Вердикт-1')
@@ -456,30 +467,42 @@ class RecommendAdvice():
             effective_shoulder_2 = tech_info.get('эффективный период инвестирования по 1-му году')
 
             try:
-                P_E = current_close / T_EPS
+                P_E = round(current_close / T_EPS, 2)
             except ZeroDivisionError:
                 P_E = 'нет данных'
             try:
                 TMP = fundamental_info.get('TargetMedianPrice')
-                EXP_G = (TMP / current_close - 1)
+                EXP_G = round( (TMP / current_close - 1) * 100, 1)
+                if EXP_G >= 0:
+                    sign = '+'
+                else:
+                    sign = '-'
             except TypeError:
                 TMP = 0
                 EXP_G = 0
 
-            first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)}({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
-                                         f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\nEBITDA: {EBIT}\nСвободный поток денег: {FCF}\nСтоимость компании / Выручка: {round(enterprToRev, 2)}%\n' +
-                                         f'Стоимость компании / EBITDA: {round(enterprToEbitda, 2)}%\nДолг к выручке: {round(DTE, 2)}%\nROA: {round(ROA, 2)}%\nГодовая дивидендная доходность: ~{round(yr_div * 100, 2)}%\n' +
-                                         f'Див.доходность за 5 лет: {round(five_yr_div_yield * 100, 2)}%\n')
+            if yr_div == 0 or five_yr_div_yield == 0: # опускаем информацию по дивам
+                first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
+                                             f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\nEBITDA: ${EBIT}млн.\nПоток свободных денежных средств: {FCF}млн.\nСтоимость компании / Выручка: {round(enterprToRev, 2)}%\n' +
+                                             f'Стоимость компании / EBITDA: {round(enterprToEbitda, 2)}%\nДолг к выручке: {round(DTE, 2)}%\nРентабельность активов: {ROA}%\n')
+            else:
+                first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
+                                             f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\nEBITDA: ${EBIT}млн.\nПоток свободных денежных средств: {FCF}млн.\nСтоимость компании / Выручка: {round(enterprToRev, 2)}%\n' +
+                                             f'Стоимость компании / EBITDA: {round(enterprToEbitda, 2)}%\nДолг к выручке: {round(DTE, 2)}%\nРентабельность активов: {ROA}%\n'+
+                                             f'Годовая дивидендная доходность: ~{yr_div}%\nДив.доходность за 5 лет: {five_yr_div_yield}%\n')
 
 
             second_part_technical = str(f'Теоретическая прибыльность при торговле в long, с {str(datetime.date(period_1))}: {str(round(verdict_1 * 10, 1))}%\n' +
                                     f'Прибыльность за период с {str(datetime.date(period_2))}: {str(round(verdict_2 * 10, 1))}%\n' +
                                     f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_2_drop * 100, 2))}' +
                                     f'%\nТекущий уровень прибыльности при торговле в long: {str(buy_now_decision)}%\nТекущая стоимость акции: ~${str(round(current_close, 2))}\n'+
-                                    f'По взвешенной оценке экспертов, акция оценивается в ${round(TMP, 2)}(+{round(EXP_G * 100, 1)}%); Число экспертов по оценке: {NOA}\n' +
-                                    f'%\nЭффективный период инвестирования по 2-м годам: {str(effective_shoulder_1)}дн.; по 1-му году: {str(effective_shoulder_2)}дн.')
+                                    f'По взвешенной оценке экспертов, акция оценивается в ${round(TMP, 2)}('+sign+f'{EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
+                                    f'%\nЭффективный период инвестирования с {str(datetime.date(period_1))}, в среднем составляет: {str(effective_shoulder_1)}дн.; c {str(datetime.date(period_2))}: {str(effective_shoulder_2)}дн.')
 
-            chart_1 = risk_analysis_data[1]
+            try:
+                chart_1 = risk_analysis_data[1]
+            except:
+                chart_1 = ""
 
             sentiment_part = self.get_sentiment_analysis(self.req_ticker)
             sentiment_image = sentiment_part[1]
