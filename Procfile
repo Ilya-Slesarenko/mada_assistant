@@ -1,1 +1,1 @@
-worker: python bot_2.7.py
+worker: python her_ver_1.0.py
