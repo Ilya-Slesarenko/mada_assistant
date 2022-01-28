@@ -427,7 +427,7 @@ class RecommendAdvice():
             country = fundamental_info.get('Страна')
             m_cap = fundamental_info.get('Рыночная капитализация, $млн.')
             enterp_val = fundamental_info.get('Стоимость компании, $млн.')
-            FCF = f'''Поток свободных денежных средств: {fundamental_info.get('FreeCashFlow')}млн.\n''' if fundamental_info.get('FreeCashFlow') >0 else ''
+            FCF = f'''Поток свободных денежных средств: ${fundamental_info.get('FreeCashFlow')}млн.\n''' if fundamental_info.get('FreeCashFlow') >0 else ''
             DTE = f'''Долг к выручке: {round(fundamental_info.get('DebtToEquity') ,2)}%\n''' if round(fundamental_info.get('DebtToEquity') ,2) >0 else ''
             ROA = round(fundamental_info.get('ROA_ReturnOnAssets')*100 ,2)
             EBIT = f'''EBITDA: ${fundamental_info.get('EBITDA')}млн.\n''' if fundamental_info.get('EBITDA') > 0 else ''
@@ -491,7 +491,7 @@ class RecommendAdvice():
                                     f'Прибыльность за период с {str(datetime.date(period_2))}: {str(round(verdict_2 * 10, 1))}%\n' +
                                     f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_2_drop * 100, 2))}% {add_part} \n' +
                                     f'Текущий уровень прибыльности при торговле в long: {str(buy_now_decision)}%\nТекущая стоимость акции: ~${str(round(current_close, 2))}\n'+
-                                    f'По взвешенной оценке экспертов, акция оценивается в ${round(TMP, 2)} ({EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
+                                    f'По взвешенному мнению экспертов, акция оценивается в ${round(TMP, 2)} ({EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
                                     f'Эффективный период инвестирования с {str(datetime.date(period_1))}, в среднем составляет: {str(effective_shoulder_1)}дн.; c {str(datetime.date(period_2))}: {str(effective_shoulder_2)}дн.')
 
             try:
