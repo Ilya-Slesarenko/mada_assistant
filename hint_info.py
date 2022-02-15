@@ -1,4 +1,4 @@
-import httplib2, apiclient.discovery
+import logging, random, warnings, httplib2, apiclient.discovery, datetime
 from oauth2client.service_account import ServiceAccountCredentials
 from scipy.stats import norm
 import numpy as np
@@ -11,16 +11,11 @@ from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk, warnings, io
+from googletrans import Translator  # python -m pip install googletrans==4.0.0-rc1
 
 nltk.download('vader_lexicon')
 warnings.filterwarnings('ignore')
 # if  JSONDecodeError  HAPPENS - upgrade the yfinance!
-
-# method for image capturing in temp.memory (instead of saving)
-try:
-    from StringIO import StringIO  ## for Python 2
-except ImportError:
-    from io import StringIO
 
 
 class RecommendAdvice():
@@ -35,6 +30,7 @@ class RecommendAdvice():
         tickers_page = '1s6uIbhIX4IYCmFYhfWgEklFqtLX95ky7GmJNRvVexeM'
         self.ranking_page = '1C_uAagRb_GV7tu8X1fbJIM9SRtH3bAcc-n61SP8muXg'
         credentials = ServiceAccountCredentials.from_json_keyfile_name(self.CREDENTIALS_FILE, ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
+        # credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
         httpAuth = credentials.authorize(httplib2.Http())  # Авторизуемся в системе
         self.service = apiclient.discovery.build('sheets', 'v4', http=httpAuth)  # Выбираем работу с таблицами и 4 версию API
 
@@ -60,6 +56,12 @@ class RecommendAdvice():
                 company_name = t_info.get('shortName')
             except TypeError:
                 company_name = None
+
+            try:
+                long_summary = t_info.get('longBusinessSummary')
+                summary_ru = Translator().translate(long_summary, src='en', dest = 'ru').text
+            except TypeError:
+                long_summary, summary_ru = None, None
 
             try:
                 sector = t_info.get('sector')
@@ -127,7 +129,7 @@ class RecommendAdvice():
                 div_date = 'Без дивидендов'
 
             try:
-                FreeCashFlow = round(t_info.get('freeCashflow')/1000000 ,2) if t_info.get('freeCashflow') is not None else 0
+                FreeCashFlow = round(t_info.get('freeCashflow') / 1000000, 2) if t_info.get('freeCashflow') is not None else 0
             except TypeError:
                 FreeCashFlow = None
 
@@ -142,7 +144,7 @@ class RecommendAdvice():
                 ROA_ReturnOnAssets = None
 
             try:
-                EBITDA = round(t_info.get('ebitda') / 1000000 ,3) if t_info.get('ebitda') is not None else 0
+                EBITDA = round(t_info.get('ebitda') / 1000000, 3) if t_info.get('ebitda') is not None else 0
             except TypeError:
                 EBITDA = None
 
@@ -161,9 +163,8 @@ class RecommendAdvice():
             except TypeError:
                 Trailing_EPS_EarningsPerShare = None
 
-
-            final_params_fundamental = [company_name, sector, country, m_cap, enterp_val, P_S_12_m, P_B, marg, enterprToRev, enterprToEbitda, yr_div, five_yr_div_yield, div_date, FreeCashFlow, DebtToEquity, ROA_ReturnOnAssets, EBITDA, TargetMedianPrice, NumberOfAnalystOpinions, Trailing_EPS_EarningsPerShare]
-            list_headers = ['Полное наименование компании', 'Сектор', 'Страна', 'Рыночная капитализация, $млн.', 'Стоимость компании, $млн.', 'P/S', 'P/B', 'Маржинальность', 'Стоимость компании / Выручка', 'Стоимость компании / EBITDA', 'Годовая дивидендная доходность', 'Див.доходность за 5 лет', 'Крайняя дата выплаты дивидендов', 'FreeCashFlow', 'DebtToEquity', 'ROA_ReturnOnAssets', 'EBITDA', 'TargetMedianPrice', 'NumberOfAnalystOpinions', 'Trailing_EPS_EarningsPerShare']
+            final_params_fundamental = [company_name, sector, country, summary_ru, m_cap, enterp_val, P_S_12_m, P_B, marg, enterprToRev, enterprToEbitda, yr_div, five_yr_div_yield, div_date, FreeCashFlow, DebtToEquity, ROA_ReturnOnAssets, EBITDA, TargetMedianPrice, NumberOfAnalystOpinions, Trailing_EPS_EarningsPerShare]
+            list_headers = ['Полное наименование компании', 'Сектор', 'Страна', 'Описание', 'Рыночная капитализация, $млн.', 'Стоимость компании, $млн.', 'P/S', 'P/B', 'Маржинальность', 'Стоимость компании / Выручка', 'Стоимость компании / EBITDA', 'Годовая дивидендная доходность', 'Див.доходность за 5 лет', 'Крайняя дата выплаты дивидендов', 'FreeCashFlow', 'DebtToEquity', 'ROA_ReturnOnAssets', 'EBITDA', 'TargetMedianPrice', 'NumberOfAnalystOpinions', 'Trailing_EPS_EarningsPerShare']
 
             a_dictionary = dict(zip(list_headers, final_params_fundamental))
 
@@ -172,7 +173,6 @@ class RecommendAdvice():
             return error_text
 
         return a_dictionary
-
 
     def riskAnalysis(self, ticker):
         verdict_list_whole_period = []
@@ -230,7 +230,7 @@ class RecommendAdvice():
                             z = 0
                         else:
                             z = 0
-                except: # ma values could be NaN, so need to just pass them
+                except:  # ma values could be NaN, so need to just pass them
                     pass
             for i in list_of_periods_1:
                 sum += i
@@ -323,7 +323,6 @@ class RecommendAdvice():
 
         return tech_dictionary, buffer_image
 
-
     def get_sentiment_analysis(self, ticker):
         finwiz_url = 'https://finviz.com/quote.ashx?t='
         news_tables = {}
@@ -407,6 +406,68 @@ class RecommendAdvice():
 
         return latest_feedback, buffer_image, latest_news_link
 
+    def RateInfo(self, ticker):
+        stock_report_page = '11lzBveJVUSqtFJHLvy9Z3vcvqaBaFzuciFiHDAj0Nvg'
+
+        R1_ranks = self.service.spreadsheets().values().batchGet(spreadsheetId=stock_report_page, ranges='R1!A:BJ', valueRenderOption='FORMATTED_VALUE', dateTimeRenderOption='FORMATTED_STRING').execute()
+        # R1_ranks = service.spreadsheets().values().batchGet(spreadsheetId=stock_report_page, ranges='R1!A:BJ', valueRenderOption='FORMATTED_VALUE', dateTimeRenderOption='FORMATTED_STRING').execute()
+        R1_values = R1_ranks['valueRanges'][0]['values'][1:]
+
+        R2_ranks = self.service.spreadsheets().values().batchGet(spreadsheetId=stock_report_page, ranges='R2!A:BJ', valueRenderOption='FORMATTED_VALUE', dateTimeRenderOption='FORMATTED_STRING').execute()
+        # R2_ranks = service.spreadsheets().values().batchGet(spreadsheetId=stock_report_page, ranges='R2!A:BJ', valueRenderOption='FORMATTED_VALUE', dateTimeRenderOption='FORMATTED_STRING').execute()
+        R2_values = R2_ranks['valueRanges'][0]['values'][1:]
+
+        R3_ranks = self.service.spreadsheets().values().batchGet(spreadsheetId=stock_report_page, ranges='R3!A:BJ', valueRenderOption='FORMATTED_VALUE', dateTimeRenderOption='FORMATTED_STRING').execute()
+        # R3_ranks = service.spreadsheets().values().batchGet(spreadsheetId=stock_report_page, ranges='R3!A:BJ', valueRenderOption='FORMATTED_VALUE', dateTimeRenderOption='FORMATTED_STRING').execute()
+        R3_values = R3_ranks['valueRanges'][0]['values'][1:]
+
+        # формируем тотальный список из 3-х рейтингов, с указательным столбцом для каждого, для удобства итерирования
+        R_full_values = []
+        for v in R1_values[:50]:
+            v.append('Локомотив')
+            R_full_values.append(v)
+        for v in R2_values:
+            v.append('Активный рост')
+            R_full_values.append(v)
+        for v in R3_values:
+            v.append('Потенциал роста')
+            R_full_values.append(v)
+
+        # проверяем поэтапно сперва причастность к 1-му рангу, затем ко 2-му в каждом из типов рейта
+        rankin_rate = ''  # default value
+        invest_tactics = ''  # default value
+
+        for i in R_full_values:
+            if i[1] == ticker and i[-2] == '1' and i[-1] == 'Локомотив':
+                rankin_rate = '1 - высокий интерес (покупать)'
+                invest_tactics = 'Вектор инвестора: Локомотив'
+                break
+            elif i[1] == ticker and i[-2] == '1' and i[-1] == 'Активный рост':
+                rankin_rate = '1 - высокий интерес (покупать)'
+                invest_tactics = 'Вектор инвестора: Активный рост'
+                break
+            elif i[1] == ticker and i[-2] == '1' and i[-1] == 'Потенциал роста':
+                rankin_rate = '1 - высокий интерес (покупать)'
+                invest_tactics = 'Вектор инвестора: Потенциал роста'
+                break
+            elif i[1] == ticker and i[-2] == '2' and i[-1] == 'Локомотив':
+                rankin_rate = '2 - присутствует интерес (держать)'
+                invest_tactics = 'Вектор инвестора: Локомотив'
+                break
+            elif i[1] == ticker and i[-2] == '2' and i[-1] == 'Активный рост':
+                rankin_rate = '2 - присутствует интерес (держать)'
+                invest_tactics = 'Вектор инвестора: Активный рост'
+                break
+            elif i[1] == ticker and i[-2] == '2' and i[-1] == 'Потенциал роста':
+                rankin_rate = '2 - присутствует интерес (держать)'
+                invest_tactics = 'Вектор инвестора: Потенциал роста'
+                break
+            else:
+                rankin_rate = '3 - интерес низкий (продавать)'  # default value
+                invest_tactics = ''  # default value
+
+        return rankin_rate, invest_tactics
+
     def Summarize(self):
         if self.req_ticker not in self.tickers_list:
             pass
@@ -414,34 +475,35 @@ class RecommendAdvice():
             fundamental_info = self.get_fundamental_data(self.req_ticker)
 
             try:
-                P_S = fundamental_info.get('P/S') if fundamental_info.get('P/S') >0 else 0
+                P_S = fundamental_info.get('P/S') if fundamental_info.get('P/S') > 0 else 0
             except:
                 P_S = 0
 
             try:
-                P_B = fundamental_info.get('P/B') if fundamental_info.get('P/B') >0 else 0
+                P_B = fundamental_info.get('P/B') if fundamental_info.get('P/B') > 0 else 0
             except:
                 P_B = 0
 
             Sector = fundamental_info.get('Сектор')
             country = fundamental_info.get('Страна')
+            descriptions = fundamental_info.get('Описание')
             m_cap = fundamental_info.get('Рыночная капитализация, $млн.')
             enterp_val = fundamental_info.get('Стоимость компании, $млн.')
-            FCF = f'''Поток свободных денежных средств: ${fundamental_info.get('FreeCashFlow')}млн.\n''' if fundamental_info.get('FreeCashFlow') >0 else ''
-            DTE = f'''Долг к выручке: {round(fundamental_info.get('DebtToEquity') ,2)}%\n''' if round(fundamental_info.get('DebtToEquity') ,2) >0 else ''
-            ROA = round(fundamental_info.get('ROA_ReturnOnAssets')*100 ,2)
+            FCF = f'''Поток свободных денежных средств: ${fundamental_info.get('FreeCashFlow')}млн.\n''' if fundamental_info.get('FreeCashFlow') > 0 else ''
+            DTE = f'''Долг к выручке: {round(fundamental_info.get('DebtToEquity'), 2)}%\n''' if round(fundamental_info.get('DebtToEquity'), 2) > 0 else ''
+            ROA = round(fundamental_info.get('ROA_ReturnOnAssets') * 100, 2)
             EBIT = f'''EBITDA: ${fundamental_info.get('EBITDA')}млн.\n''' if fundamental_info.get('EBITDA') > 0 else ''
             NOA = fundamental_info.get('NumberOfAnalystOpinions') if fundamental_info.get('NumberOfAnalystOpinions') is not None else 0
             try:
-                enterprToRev = f'''Стоимость компании / Выручка: {round(fundamental_info.get('Стоимость компании / Выручка'), 2)}%\n''' if round(fundamental_info.get('Стоимость компании / Выручка'), 2) >0  else ''
+                enterprToRev = f'''Стоимость компании / Выручка: {round(fundamental_info.get('Стоимость компании / Выручка'), 2)}%\n''' if round(fundamental_info.get('Стоимость компании / Выручка'), 2) > 0 else ''
             except:
                 enterprToRev = ''
             try:
-                enterprToEbitda = f'''Стоимость компании / EBITDA: {round(fundamental_info.get('Стоимость компании / EBITDA'), 2)}%\n''' if round(fundamental_info.get('Стоимость компании / EBITDA'), 2) >0 else ''
+                enterprToEbitda = f'''Стоимость компании / EBITDA: {round(fundamental_info.get('Стоимость компании / EBITDA'), 2)}%\n''' if round(fundamental_info.get('Стоимость компании / EBITDA'), 2) > 0 else ''
             except:
                 enterprToEbitda = ''
-            yr_div = f'''Годовая дивидендная доходность: ~{round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2)}%\n''' if round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2) >0 else ''
-            five_yr_div_yield = f'''Див.доходность за 5 лет: {round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2)}%\n''' if round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2) >0 else ''
+            yr_div = f'''Годовая дивидендная доходность: ~{round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2)}%\n''' if round(fundamental_info.get('Годовая дивидендная доходность') * 100, 2) > 0 else ''
+            five_yr_div_yield = f'''Див.доходность за 5 лет: {round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2)}%\n''' if round(fundamental_info.get('Див.доходность за 5 лет') * 100, 2) > 0 else ''
 
             T_EPS = fundamental_info.get('Trailing_EPS_EarningsPerShare')
 
@@ -463,9 +525,9 @@ class RecommendAdvice():
                 add_part = '(ниже средней)'
             if prob_2_drop > 0.10 and prob_2_drop < 0.24:
                 add_part = '(в районе средней)'
-            if prob_2_drop >=0.24 and prob_2_drop <0.35:
+            if prob_2_drop >= 0.24 and prob_2_drop < 0.35:
                 add_part = '(выше средней)'
-            if prob_2_drop >=0.35:
+            if prob_2_drop >= 0.35:
                 add_part = '(высокий риск!)'
             buy_now_decision = tech_info.get('Текущий уровень роста в long')
             current_close = tech_info.get('Текущий close')
@@ -479,20 +541,24 @@ class RecommendAdvice():
 
             try:
                 TMP = fundamental_info.get('TargetMedianPrice')
-                EXP_G = round( (TMP / current_close - 1) * 100, 1)
+                EXP_G = round((TMP / current_close - 1) * 100, 1)
             except TypeError:
                 TMP = 0
                 EXP_G = 0
 
-            first_part_fundamental = str(f'Полное наименование: {self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
-                                         f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\n'+EBIT+FCF+enterprToRev +enterprToEbitda+DTE+f'Рентабельность активов: {ROA}%\n'+yr_div+five_yr_div_yield)
+            rate_info = self.RateInfo(self.req_ticker)
+
+            first_part_fundamental = str(f'{self.tickers_name_dict.get(self.req_ticker)} ({country}); Сектор: {Sector}\n\n{descriptions}\n\nРыночная капитализация: ${m_cap}млн.\nСтоимость компании: ${enterp_val}млн.\n' +
+                                         f'P/S: {P_S}; P/E: {P_E}; P/B: {P_B}\n' + EBIT + FCF + enterprToRev + enterprToEbitda + DTE + f'Рентабельность активов: {ROA}%\n' + yr_div + five_yr_div_yield)
 
             second_part_technical = str(f'Теоретическая прибыльность при торговле в long, с {str(datetime.date(period_1))}: {str(round(verdict_1 * 10, 1))}%\n' +
-                                    f'Прибыльность за период с {str(datetime.date(period_2))}: {str(round(verdict_2 * 10, 1))}%\n' +
-                                    f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_2_drop * 100, 2))}% {add_part} \n' +
-                                    f'Текущий уровень прибыльности при торговле в long: {str(buy_now_decision)}%\nТекущая стоимость акции: ~${str(round(current_close, 2))}\n'+
-                                    f'По взвешенному мнению экспертов, акция оценивается в ${round(TMP, 2)} ({EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
-                                    f'Эффективный период инвестирования с {str(datetime.date(period_1))}, в среднем составляет: {str(effective_shoulder_1)}дн.; c {str(datetime.date(period_2))}: {str(effective_shoulder_2)}дн.')
+                                        f'Прибыльность за период с {str(datetime.date(period_2))}: {str(round(verdict_2 * 10, 1))}%\n' +
+                                        f'Вероятность просадки стоимости акций ниже 40%: {str(round(prob_2_drop * 100, 2))}% {add_part} \n' +
+                                        f'Текущий уровень прибыльности при торговле в long: {str(buy_now_decision)}%\nТекущая стоимость акции: ~${str(round(current_close, 2))}\n' +
+                                        f'По взвешенному мнению экспертов, акция оценивается в ${round(TMP, 2)} ({EXP_G}% к текущей цене); Число экспертов по оценке: {NOA}\n' +
+                                        f'Эффективный период инвестирования в лонг за последние 2,5 года, в среднем составляет: от {str(effective_shoulder_1)}дн.; за последний год: от {str(effective_shoulder_2)}дн.\n')
+
+            third_part_rate = str(f'В моем рейтинге на текущий момент бумага имеет оценку {rate_info[0]}. {rate_info[1]}')
 
             try:
                 chart_1 = risk_analysis_data[1]
@@ -502,5 +568,5 @@ class RecommendAdvice():
             sentiment_part = self.get_sentiment_analysis(self.req_ticker)
             sentiment_image = sentiment_part[1]
 
-            summary = [first_part_fundamental + second_part_technical, chart_1, sentiment_image]
+            summary = [first_part_fundamental + second_part_technical + third_part_rate, chart_1, sentiment_image]
             return summary
