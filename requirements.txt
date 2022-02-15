@@ -13,3 +13,4 @@ beautifulsoup4 == 4.9.3
 nltk == 3.6.2
 aioschedule == 0.5.2
 asyncio == 3.4.3
+googletrans==4.0.0-rc1
