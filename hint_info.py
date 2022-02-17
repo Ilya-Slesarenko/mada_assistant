@@ -423,7 +423,7 @@ class RecommendAdvice():
 
         # формируем тотальный список из 3-х рейтингов, с указательным столбцом для каждого, для удобства итерирования
         R_full_values = []
-        for v in R1_values[:50]:
+        for v in R1_values:
             v.append('Локомотив')
             R_full_values.append(v)
         for v in R2_values:
